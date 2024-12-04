@@ -109,18 +109,35 @@ impl Blockchain {
     }
 }
 
-fn main() {
-    let mut blockchain = Blockchain::new();
-    blockchain.create_transaction("Alice", "Bob", 100.0);
-    blockchain.create_transaction("Bob", "Alice", 50.0);
-    blockchain.create_transaction("Alice", "Bob", 25.0);
-    blockchain.create_transaction("Alice", "Bob", 10.0);
-    blockchain.create_transaction("Bob", "Alice", 5.0);
-    blockchain.create_transaction("Alice", "Bob", 2.5);
-    println!("{:?}", blockchain);
-    let integrity = blockchain.integrity();
-    println!("Integrity: {}", integrity);
-    blockchain.corrupt();
-    let integrity = blockchain.integrity();
-    println!("Integrity: {}", integrity);
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_blockchain() {
+        let mut blockchain = Blockchain::new();
+        blockchain.create_transaction("Alice", "Bob", 100.0);
+        blockchain.create_transaction("Bob", "Alice", 50.0);
+        blockchain.create_transaction("Alice", "Bob", 25.0);
+        blockchain.create_transaction("Alice", "Bob", 10.0);
+        blockchain.create_transaction("Bob", "Alice", 5.0);
+        blockchain.create_transaction("Alice", "Bob", 2.5);
+        assert_eq!(blockchain.blocks.len(), 2);
+        assert_eq!(blockchain.blocks[0].transactions.len(), 5);
+        assert_eq!(blockchain.blocks[1].transactions.len(), 1);
+    }
+
+    #[test]
+    fn test_integrity() {
+        let mut blockchain = Blockchain::new();
+        blockchain.create_transaction("Alice", "Bob", 100.0);
+        blockchain.create_transaction("Bob", "Alice", 50.0);
+        blockchain.create_transaction("Alice", "Bob", 25.0);
+        blockchain.create_transaction("Alice", "Bob", 10.0);
+        blockchain.create_transaction("Bob", "Alice", 5.0);
+        blockchain.create_transaction("Alice", "Bob", 2.5);
+        assert_eq!(blockchain.integrity(), true);
+        blockchain.corrupt();
+        assert_eq!(blockchain.integrity(), false);
+    }
 }
