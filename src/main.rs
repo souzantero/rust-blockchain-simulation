@@ -1,4 +1,5 @@
 use std::time::SystemTime;
+use sha2::{Digest, Sha256};
 
 const MAX_TRANSACTIONS_PER_BLOCK: usize = 5;
 
@@ -19,10 +20,9 @@ pub struct Transaction {
 #[derive(Debug)]
 pub struct Block {
     pub id: Id,
+    pub previous_hash: Hash,
     pub timestamp: Timestamp,
     pub transactions: Vec<Transaction>,
-    pub previous_hash: Hash,
-    pub hash: Hash,
 }
 
 impl Block {
@@ -31,16 +31,22 @@ impl Block {
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-
-        let hash = format!("{:?}", (id, &previous_hash, timestamp));
         let transactions: Vec<Transaction> = Vec::new();
+
         Block {
             id,
+            previous_hash,
             timestamp,
             transactions,
-            previous_hash,
-            hash,
         }
+    }
+
+    pub fn hash(&self) -> Hash {
+        let mut hasher = Sha256::new();
+        let data = format!("{:?}", (self.id, &self.previous_hash, self.timestamp));
+        hasher.update(data);
+        let result = hasher.finalize();
+        format!("{:x}", result)
     }
 }
 
@@ -72,10 +78,26 @@ impl Blockchain {
         current_block.transactions.push(transaction);
     }
 
+    pub fn integrity(&self) -> bool {
+        for i in 1..self.blocks.len() {
+            if self.blocks[i].previous_hash != self.blocks[i - 1].hash() {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    pub fn corrupt(&mut self) {
+        if let Some(block) = self.blocks.last_mut() {
+            block.previous_hash = "corrupted".to_string();
+        }
+    }
+
     fn get_current_block(&mut self) -> &mut Block {
         if let Some(current_block) = self.blocks.last_mut() {
             if current_block.transactions.len() >= MAX_TRANSACTIONS_PER_BLOCK {
-                let new_block = Block::new(current_block.id + 1, current_block.hash.clone());
+                let new_block = Block::new(current_block.id + 1, current_block.hash());
                 self.blocks.push(new_block);
             }
         } else {
@@ -96,4 +118,9 @@ fn main() {
     blockchain.create_transaction("Bob", "Alice", 5.0);
     blockchain.create_transaction("Alice", "Bob", 2.5);
     println!("{:?}", blockchain);
+    let integrity = blockchain.integrity();
+    println!("Integrity: {}", integrity);
+    blockchain.corrupt();
+    let integrity = blockchain.integrity();
+    println!("Integrity: {}", integrity);
 }
